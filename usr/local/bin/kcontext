@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+if [ $# -lt 1 ]; then
+    k config current-context
+else
+    k config use-context "$1"
+fi
