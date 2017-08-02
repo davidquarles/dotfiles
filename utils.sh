@@ -59,6 +59,7 @@ function pin-to-dock() {
 function install-homebrew-formula() {
 
     formulae=(
+        awscli
         bash
         coreutils
         dockutil
@@ -89,7 +90,7 @@ function install-homebrew-formula() {
     installed=$(brew list | sort -u)
     uninstalled=$(comm -23 <(echo "$desired") <(echo "$installed"))
     if [[ "$uninstalled" != "" ]]; then
-		brew install $uninstalled
+        brew install $uninstalled
     fi
 
     sudo ln -snf /usr/local/bin/gsha256sum /usr/local/bin/sha256sum
@@ -130,7 +131,7 @@ function install-homebrew-casks() {
     installed=$(brew cask list | sort -u)
     uninstalled=$(comm -23 <(echo "$desired") <(echo "$installed"))
     if [[ "$uninstalled" != "" ]]; then
-		brew cask install $uninstalled
+        brew cask install $uninstalled
         for cask in ${!casks[*]}; do
             if [ ${docked_casks[$cask]} ]; then
                 artifact=$(brew cask info $cask | awk 'found,0;/==> Artifacts/{found=1}' | sed -n 's/ (app)//p')
@@ -183,13 +184,6 @@ function generate-new-private-keys() {
     fi
 }
 
-function fetch-existing-private-keys() {
-    if [ -f ~/Dropbox/creds.tgz.enc ]; then
-        gpg -d ~/Dropbox/creds.tgz.enc \
-            | tar -C $HOME -xzf -
-    fi
-}
-
 function install-oh-my-zsh() {
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
 }
@@ -212,7 +206,7 @@ function install-powerline() {
 }
 
 function symlink-dev-dir() {
-    ln -snf $HOME/Dropbox/dev $HOME/dev
+    [ -d ~/Dropbox/dev ] && ln -snf $HOME/Dropbox/dev $HOME/dev
 }
 
 function symlink-dotfiles() {
@@ -221,8 +215,10 @@ function symlink-dotfiles() {
         # strip leading $DIR component
         relative_path=${file/$DIR\/}
         target_path=$HOME/$relative_path
-        mkdir -p $(dirname $target_path)
-        ln -snf $file $target_path
+        if [ !  -d "$(dirname $target_path)" ]; then
+            mkdir -p $(dirname $target_path)
+        fi
+        ln -nf $file $target_path
     done
     for file in $(ls $DIR/usr/local/bin/*); do
         cp $file /usr/local/bin/
@@ -236,7 +232,7 @@ function install-vim-pathogen() {
 
 function load-iterm2-preferences() {
     echo "------------------------------"
-    echo "Now we need to manually load/syunc iTerm2 preferences via Dropbox."
+    echo "Now we need to manually load/sync iTerm2 preferences via Dropbox."
     echo "open iTerm2 ->  -> Preferences -> ☑ Load preferences from a custom folder or URL"
     read -p "When complete, press enter to continue" foo
 }

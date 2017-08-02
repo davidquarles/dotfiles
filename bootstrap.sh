@@ -22,13 +22,10 @@ install-docker-for-mac
 
 # create & set up gpg/ssh
 generate-new-private-keys
-# uses gpg + dropbox
-fetch-existing-private-keys
 
 install-oh-my-zsh
 install-powerline
 install-gcloud
-install-aws-cli
 
 symlink-dev-dir
 symlink-dotfiles

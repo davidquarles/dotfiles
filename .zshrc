@@ -63,7 +63,7 @@ ENABLE_CORRECTION="true"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(autopep8 aws docker encode64 gitfast golang jira kubectl python z)
+plugins=(autopep8 awscli docker encode64 gitfast golang jira kubectl python z)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -85,6 +85,8 @@ export EDITOR='vim'
 
 # aliases
 alias d='doctl '
+alias dlist='doctl compute droplet list '
+alias dsh='doctl compute ssh '
 alias gcreds='gcloud container clusters get-credentials '
 alias glist='gcloud compute instances list '
 alias gobin="curl -F 'gob=<-' http://gobin.io"
