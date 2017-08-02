@@ -3,7 +3,6 @@
 #############
 
 # coreutils
-export PATH=/usr/local/opt/coreutils/libexec/gnubin:$PATH
 export MANPATH=/usr/local/opt/coreutils/libexec/gnuman:$MANPATH
 # gnu sed
 export PATH=/usr/local/opt/gnu-sed/libexec/gnubin:$PATH
@@ -13,17 +12,14 @@ export PATH=$PATH:~/phab/arcanist/bin
 # golang
 export GOPATH=~/go
 export PATH=$PATH:$GOPATH/bin
-# gcloud
-. ~/google-cloud-sdk/path.zsh.inc
+
 
 # Path to your oh-my-zsh installation.
 export ZSH=/Users/$(whoami)/.oh-my-zsh
 export DEFAULT_USER=$(whoami)
 
-# Set name of the theme to load. Optionally, if you set this to "random"
-# it'll load a random theme each time that oh-my-zsh is loaded.
-# See https://github.com/robbyrussell/oh-my-zsh/wiki/Themes
-ZSH_THEME="agnoster"
+# agnoster, with kubernetes context inject into prompt
+ZSH_THEME="dq"
 
 # Uncomment the following line to use case-sensitive completion.
 # CASE_SENSITIVE="true"
@@ -45,7 +41,7 @@ ZSH_THEME="agnoster"
 # DISABLE_AUTO_TITLE="true"
 
 # Uncomment the following line to enable command auto-correction.
-# ENABLE_CORRECTION="true"
+ENABLE_CORRECTION="true"
 
 # Uncomment the following line to display red dots whilst waiting for completion.
 # COMPLETION_WAITING_DOTS="true"
@@ -67,7 +63,7 @@ ZSH_THEME="agnoster"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(docker encode64 gitfast golang jira kubectl python z)
+plugins=(autopep8 aws docker encode64 gitfast golang jira kubectl python z)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -87,18 +83,29 @@ export EDITOR='vim'
 # ssh
 # export SSH_KEY_PATH="~/.ssh/dsa_id"
 
-# Set personal aliases, overriding those provided by oh-my-zsh libs,
-# plugins, and themes. Aliases can be placed here, though oh-my-zsh
-# users are encouraged to define aliases within the ZSH_CUSTOM folder.
-# For a full list of active aliases, run `alias`.
-#
-# Example aliases
-# alias zshconfig="mate ~/.zshrc"
-# alias ohmyzsh="mate ~/.oh-my-zsh"
+# aliases
+alias d='doctl '
+alias gcreds='gcloud container clusters get-credentials '
+alias glist='gcloud compute instances list '
+alias gobin="curl -F 'gob=<-' http://gobin.io"
+alias gsh='gcloud compute ssh '
+alias ip='dig +short myip.opendns.com @resolver1.opendns.com'
+alias la='ls -a '
+alias ll='ls -l '
+alias rm='rm -i '
+alias trim="sed -e 's/^[[:space:]]*//g' -e 's/[[:space:]]*\$//g'"
+alias watch='watch '
 
 for file in \
-	$ZSH/custom/aliases \
 	~/.iterm2_shell_integration.bash \
 	/usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
 	[ -f $file ] && . $file
 done
+export PATH=/usr/local/opt/coreutils/libexec/gnubin:$PATH
+
+# gcloud
+. ~/google-cloud-sdk/path.zsh.inc
+. ~/google-cloud-sdk/completion.zsh.inc
+
+# doctl
+. <(doctl completion zsh)

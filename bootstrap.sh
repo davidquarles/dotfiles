@@ -7,7 +7,7 @@ if [ ! -d ~/dotfiles ]; then
     mv ~/dotfiles-master ~/dotfiles
 fi
 
-export DIR=$HOME/dotfiles
+export DIR=$HOME/dev/dotfiles
 . $DIR/utils.sh
 
 # auth + continuous refresh

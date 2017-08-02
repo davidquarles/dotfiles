@@ -50,30 +50,47 @@ function setup-homebrew() {
      fi
 }
 
-install-deps-via-homebrew() {
+function pin-to-dock() {
+    defaults write com.apple.dock persistent-apps \
+        -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>/Applications/VLC.app</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
+    killall Dock
+}
 
-    brew install \
-        ag \
-        bash \
-        coreutils \
-        findutils \
-        git \
-        go \
-        gpg \
-        htop \
-        jq \
-        lua \
-        moreutils \
-        nmap \
-        pigz \
-        pkg-config \
-        pstree \
-        pv \
-        rename \
-        watch \
-        wget \
-        zsh \
+function install-homebrew-formula() {
+
+    formulae=(
+        bash
+        coreutils
+        dockutil
+        doctl
+        findutils
+        git
+        go
+        gnupg
+        htop
+        jq
+        kubernetes-helm
+        lua
+        moreutils
+        nmap
+        pigz
+        pkg-config
+        pstree
+        pv
+        rename
+        the_silver_searcher
+        watch
+        wget
+        zsh
         zsh-completions
+    )
+
+    desired=$(echo ${formulae[*]} | tr " " "\n" | sort -u)
+    installed=$(brew list | sort -u)
+    uninstalled=$(comm -23 <(echo "$desired") <(echo "$installed"))
+    if [[ "$uninstalled" != "" ]]; then
+		brew install $uninstalled
+    fi
 
     sudo ln -snf /usr/local/bin/gsha256sum /usr/local/bin/sha256sum
 
@@ -88,20 +105,45 @@ install-deps-via-homebrew() {
     echo "export PATH=$(brew --prefix coreutils)/libexec/gnubin:\$PATH" >> ~/.zshrc
 
     brew install gnu-sed --with-default-names
+}
+
+function install-homebrew-casks() {
 
     brew tap caskroom/versions
 
-    # Core casks
-    brew cask install --appdir="~/Applications" \
-        1password \
-        dropbox \
-        google-chrome \
-        iterm2 \
-        java \
-        skype \
-        slack \
-        vagrant \
-        virtualbox \
+    # value specifies whether to pin to dock
+    declare -A casks=(
+        [1password]=1
+        [dropbox]=
+        [google-chrome]=1
+        [iterm2]=1
+        [java]=
+        [skype]=
+        [slack]=1
+        [spotify]=1
+        [vagrant]=
+        [virtualbox]=
+    )
+
+    desired=$(echo ${!casks[*]} | tr " " "\n" | sort -u)
+    installed=$(brew cask list | sort -u)
+    uninstalled=$(comm -23 <(echo "$desired") <(echo "$installed"))
+    if [[ "$uninstalled" != "" ]]; then
+		brew cask install $uninstalled
+        for cask in ${!casks[*]}; do
+            if [ ${docked_casks[$cask]} ]; then
+                artifact=$(brew cask info $cask | awk 'found,0;/==> Artifacts/{found=1}' | sed -n 's/ (app)//p')
+                [ $artifact ] && dockutil --add "${artifact@E}"
+            fi
+        done
+    fi
+
+}
+
+function install-deps-via-homebrew() {
+
+    install-homebrew-formula
+    install-homebrew-casks
 
     # Remove outdated versions from the cellar.
     brew cleanup
