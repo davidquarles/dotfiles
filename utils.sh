@@ -120,6 +120,7 @@ function install-homebrew-casks() {
         [java]=
         [skype]=
         [slack]=1
+        [spectacle]=
         [spotify]=1
         [vagrant]=
         [virtualbox]=
