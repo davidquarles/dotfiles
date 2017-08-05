@@ -128,7 +128,10 @@ prompt_git() {
 }
 
 prompt_kube() {
-  context=$(kubectl config current-context)
+  context=$(kubectl config current-context 2>/dev/null)
+  if [[ "$context" == "" ]]; then
+    return 0
+  fi
   namespace=$(k config get-contexts $context | awk '{ print $5 }' | tail -1)
   if [[ "$namespace" == "" ]]; then
     namespace=default
