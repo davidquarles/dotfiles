@@ -7,7 +7,7 @@ if [ ! -d ~/dotfiles ]; then
     mv ~/dotfiles-master ~/dotfiles
 fi
 
-export DIR=$HOME/dev/dotfiles
+export DIR=$HOME/dotfiles
 . $DIR/utils.sh
 
 # auth + continuous refresh
@@ -31,3 +31,5 @@ symlink-dev-dir
 symlink-dotfiles
 install-vim-pathogen
 load-iterm2-preferences
+
+exec /usr/bin/env zsh

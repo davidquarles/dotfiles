@@ -50,12 +50,6 @@ function setup-homebrew() {
      fi
 }
 
-function pin-to-dock() {
-    defaults write com.apple.dock persistent-apps \
-        -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>/Applications/VLC.app</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
-    killall Dock
-}
-
 function install-homebrew-formula() {
 
     formulae=(
@@ -90,7 +84,7 @@ function install-homebrew-formula() {
     installed=$(brew list | sort -u)
     uninstalled=$(comm -23 <(echo "$desired") <(echo "$installed"))
     if [[ "$uninstalled" != "" ]]; then
-        brew install $uninstalled
+        brew install $uninstalled || true
     fi
 
     sudo ln -snf /usr/local/bin/gsha256sum /usr/local/bin/sha256sum
@@ -105,7 +99,9 @@ function install-homebrew-formula() {
     fi
     echo "export PATH=$(brew --prefix coreutils)/libexec/gnubin:\$PATH" >> ~/.zshrc
 
-    brew install gnu-sed --with-default-names
+    if ! brew list gnu-sed &>/dev/null; then
+        brew install gnu-sed --with-default-names
+    fi
 }
 
 function install-homebrew-casks() {
@@ -129,15 +125,18 @@ function install-homebrew-casks() {
 
     desired=$(echo ${!casks[*]} | tr " " "\n" | sort -u)
     installed=$(brew cask list | sort -u)
-    uninstalled=$(comm -23 <(echo "$desired") <(echo "$installed"))
+    uninstalled=$(comm -23 <(echo "$desired" | xargs -n1 | sort -u) <(echo "$installed" | xargs -n1 | sort -u))
     if [[ "$uninstalled" != "" ]]; then
         brew cask install $uninstalled
         for cask in ${!casks[*]}; do
-            if [ ${docked_casks[$cask]} ]; then
+            if [ -n ${casks[$cask]} ]; then
                 artifact=$(brew cask info $cask | awk 'found,0;/==> Artifacts/{found=1}' | sed -n 's/ (app)//p')
-                [ $artifact ] && dockutil --add "${artifact@E}"
+                if [ -n "$artifact" ]; then
+                    dockutil --add "/Applications/${artifact@E}"
+                fi
             fi
         done
+        killall Dock
     fi
 
 }
@@ -145,7 +144,12 @@ function install-homebrew-casks() {
 function install-deps-via-homebrew() {
 
     install-homebrew-formula
-    install-homebrew-casks
+
+    bash -c "
+        set -euxo pipefail
+        source $DIR/utils.sh
+        install-homebrew-casks
+    "
 
     # Remove outdated versions from the cellar.
     brew cleanup
@@ -154,12 +158,12 @@ function install-deps-via-homebrew() {
 function install-docker-for-mac() {
     if ! which docker; then
         # Install docker for mac
-        open https://download.docker.com/mac/stable/Docker.dmg
-        open ~/Downloads/Docker.dmg
+        curl -sL https://download.docker.com/mac/stable/Docker.dmg > /tmp/Docker.dmg
+        open -W /tmp/Docker.dmg
         cp -R /Volumes/Docker/Docker.app /Applications/Docker.app
         open /Applications/Docker.app
         umount /Volumes/Docker
-        rm -f ~/Downloads/Docker.dmg
+        rm -f /tmp/Docker.dmg
     fi
 }
 
@@ -177,7 +181,7 @@ function generate-new-private-keys() {
         upload-ssh-key-to-github "$(gpg --armor --export $gpg_key_id)"
     fi
     if [[ $((ls ~/.gnupg/private-keys-v1.d || true) | wc -l) -eq 0 ]]; then
-        gpg2 --full-generate-key
+        gpg --full-generate-key
         gpg --list-secret-keys --keyid-format LONG
         read -p "Enter key ID (not including the encryption scheme prefix, e.g. '9B25A2E0CC62F7UT'" gpg_key_id
         gpg --send-keys $gpg_key_id
@@ -185,7 +189,9 @@ function generate-new-private-keys() {
 }
 
 function install-oh-my-zsh() {
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+    if [ ! -d ~/.oh-my-zsh ]; then
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)" || true
+    fi
 }
 
 function install-powerline() {
@@ -205,11 +211,22 @@ function install-powerline() {
     fi
 }
 
+function wait-for-dir() {
+    interval=1
+    until [ -d "$1" ]; do
+        sleep $interval
+        interval=$(( interval+1 ))
+    done
+}
+
 function symlink-dev-dir() {
-    [ -d ~/Dropbox/dev ] && ln -snf $HOME/Dropbox/dev $HOME/dev
+    wait-for-dir $HOME/Dropbox/dev
+    ln -snf $HOME/Dropbox/dev $HOME/dev
 }
 
 function symlink-dotfiles() {
+
+    wait-for-dir $HOME/Dropbox/dev/dotfiles
     dotfiles=$(find $DIR -type f | egrep -v '.*\.sh|.gitmodules|.gitignore|(\.git|usr)/.*')
     for file in $dotfiles; do
         # strip leading $DIR component
@@ -240,25 +257,36 @@ function load-iterm2-preferences() {
 function install-gcloud-components() {
     gcloud components list --format=json \
         | jq -r '.[] | select(.state.name != "Installed") | .id' \
-        | xargs -n1 gcloud components install
+        | xargs -n1 gcloud -q components install
 }
 
 function install-gcloud() {
     if ! which gcloud; then
         cd
         url=https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-163.0.0-darwin-x86_64.tar.gz
-        curl -sL $url | tar -xzf -
-        ./google-cloud-sdk/install.sh
+        #curl -sL $url | tar -xzf -
+        zsh ./google-cloud-sdk/install.sh \
+            --command-completion=true \
+            --path-update=true \
+            --quiet \
+            --rc-path=$HOME/.zshrc \
+            --usage-reporting=true
         rm -rf google-cloud-sdk*.tar.gz
-        source google-cloud-sdk/path.zsh.inc
-        source google-cloud-sdk/completion.zsh.inc
+        zsh ./google-cloud-sdk/path.zsh.inc
+        zsh ./google-cloud-sdk/completion.zsh.inc
         cd -
-        exec -l $SHELL
-        gcloud init
-        install-gcloud-components
+        zsh -c "
+            set -x
+            gcloud init
+            source $DIR/utils.sh
+            install-gcloud-components
+        "
     fi
 
-    gcloud components update
+    zsh -c "
+        set -euxo pipefail
+        gcloud -q components update
+    "
 }
 
 function install-aws-cli() {
