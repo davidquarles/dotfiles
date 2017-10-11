@@ -111,3 +111,10 @@ export PATH=/usr/local/opt/coreutils/libexec/gnubin:$PATH
 
 # doctl
 . <(doctl completion zsh)
+
+# helm
+. <(helm completion zsh)
+
+GPG_TTY=$(tty)
+export GPG_TTY
+export SIGIL_DELIMS={{{,}}}

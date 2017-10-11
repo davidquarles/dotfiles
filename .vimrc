@@ -73,6 +73,12 @@ call togglebg#map("<F5>")
 highlight ModeMsg cterm=bold ctermfg=2 ctermbg=black " set mode message ( --INSERT-- ) to green
 highlight StatusLine ctermfg=7 ctermbg=9	         " set the active statusline to black on white
 highlight StatusLineNC ctermfg=8 ctermbg=9		     " set inactive statusline to black on grey
+
+" quasi-strikeout in .txt files (~~foo~~)
+au BufRead,BufNewFile *.txt syntax match StrikeoutMatch /\~\~.*\~\~/
+hi def  StrikeoutColor ctermbg=darkblue ctermfg=black guibg=darkblue guifg=blue
+hi link StrikeoutMatch StrikeoutColor
+
 " Set utf8 as standard encoding and en_US as the standard language
 set encoding=utf8
 " Use Unix as the standard file type
@@ -169,7 +175,7 @@ augroup END
 
 " Folding
 " Syntax-based code folding
-set foldmethod=syntax
+set foldmethod=manual "syntax
 " Fold 2 levels of indentation down
 set foldlevel=0
 " Automatically fold on opening file
@@ -270,3 +276,19 @@ function! WriteRun()
     :w | ! ./%
 endfunction
 command WR call WriteRun()
+
+set modelines=5
+
+" modify selected text using combining diacritics
+command! -range -nargs=0 Overline        call s:CombineSelection(<line1>, <line2>, '0305')
+command! -range -nargs=0 Underline       call s:CombineSelection(<line1>, <line2>, '0332')
+command! -range -nargs=0 DoubleUnderline call s:CombineSelection(<line1>, <line2>, '0333')
+command! -range -nargs=0 Strikethrough   call s:CombineSelection(<line1>, <line2>, '0336')
+
+function! s:CombineSelection(line1, line2, cp)
+  execute 'let char = "\u'.a:cp.'"'
+  execute a:line1.','.a:line2.'s/\%V[^[:cntrl:]|[:space:]]/&'.char.'/ge'
+endfunction
+
+vnoremap ~~ :Strikethrough<CR>
+vnoremap __ :Underline<CR>

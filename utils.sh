@@ -127,7 +127,7 @@ function install-homebrew-casks() {
     installed=$(brew cask list | sort -u)
     uninstalled=$(comm -23 <(echo "$desired" | xargs -n1 | sort -u) <(echo "$installed" | xargs -n1 | sort -u))
     if [[ "$uninstalled" != "" ]]; then
-        brew cask install $uninstalled
+        brew cask install $uninstalled || true
         for cask in ${!casks[*]}; do
             if [ -n ${casks[$cask]} ]; then
                 artifact=$(brew cask info $cask | awk 'found,0;/==> Artifacts/{found=1}' | sed -n 's/ (app)//p')
@@ -219,24 +219,46 @@ function wait-for-dir() {
     done
 }
 
+wait-for-git-sync() {
+	cd "$1"
+	interval=1
+    until git diff --exit-code 2>/dev/null; do
+        sleep $interval
+        interval=$(( interval+1 ))
+    done
+	cd -
+}
+
 function symlink-dev-dir() {
     wait-for-dir $HOME/Dropbox/dev
     ln -snf $HOME/Dropbox/dev $HOME/dev
 }
 
+# this assumes `git diff` is a sufficient check
+function wait-for-dropbox-sync() {
+	wait-for-dir $HOME/dev/dotfiles
+	wait-for-git-sync $HOME/dev/dotfiles
+}
+
 function symlink-dotfiles() {
 
-    wait-for-dir $HOME/Dropbox/dev/dotfiles
-    dotfiles=$(find $DIR -type f | egrep -v '.*\.sh|.gitmodules|.gitignore|(\.git|usr)/.*')
+    wait-for-dropbox-sync
+    dotfiles=$(find $HOME/dev/dotfiles -type f | egrep -v '.*\.sh|.gitmodules|.gitignore|(\.(git|vim)|usr)/.*')
     for file in $dotfiles; do
-        # strip leading $DIR component
-        relative_path=${file/$DIR\/}
+        # strip leading dirname component
+        relative_path=${file/$HOME\/dev\/dotfiles\/}
         target_path=$HOME/$relative_path
         if [ !  -d "$(dirname $target_path)" ]; then
             mkdir -p $(dirname $target_path)
         fi
+        # write hard links
         ln -nf $file $target_path
     done
+
+	# symlink .vim -> ~/.vim
+	ln -F $HOME/Dropbox/dev/dotfiles/.vim ~/ || true
+
+	# copy from
     for file in $(ls $DIR/usr/local/bin/*); do
         cp $file /usr/local/bin/
     done
@@ -255,16 +277,16 @@ function load-iterm2-preferences() {
 }
 
 function install-gcloud-components() {
-    gcloud components list --format=json \
+    gcloud components list --format=json 2>/dev/null \
         | jq -r '.[] | select(.state.name != "Installed") | .id' \
-        | xargs -n1 gcloud -q components install
+        | xargs gcloud -q components install
 }
 
 function install-gcloud() {
     if ! which gcloud; then
         cd
         url=https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-163.0.0-darwin-x86_64.tar.gz
-        #curl -sL $url | tar -xzf -
+        curl -sL $url | tar -xzf -
         zsh ./google-cloud-sdk/install.sh \
             --command-completion=true \
             --path-update=true \
@@ -272,21 +294,14 @@ function install-gcloud() {
             --rc-path=$HOME/.zshrc \
             --usage-reporting=true
         rm -rf google-cloud-sdk*.tar.gz
-        zsh ./google-cloud-sdk/path.zsh.inc
-        zsh ./google-cloud-sdk/completion.zsh.inc
+        zsh -c ./google-cloud-sdk/path.zsh.inc
+        zsh -c ./google-cloud-sdk/completion.zsh.inc
         cd -
-        zsh -c "
-            set -x
-            gcloud init
-            source $DIR/utils.sh
-            install-gcloud-components
-        "
+		gcloud init
+        install-gcloud-components
     fi
 
-    zsh -c "
-        set -euxo pipefail
-        gcloud -q components update
-    "
+	gcloud -q components update
 }
 
 function install-aws-cli() {
